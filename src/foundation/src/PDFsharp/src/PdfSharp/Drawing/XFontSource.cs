@@ -34,11 +34,12 @@ namespace PdfSharp.Drawing
         // Signature of a true type collection font.
         const uint ttcf = 0x66637474;
 
-        XFontSource(byte[] bytes, ulong key)
+        XFontSource(byte[] bytes, ulong key, int collectionNumber = 0)
         {
             //_fontName = null!;  // B_UG?
             Bytes = bytes;
             _key = key;
+            CollectionNumber = collectionNumber;
         }
 
         /// <summary>
@@ -47,14 +48,45 @@ namespace PdfSharp.Drawing
         /// </summary>
         public static XFontSource GetOrCreateFrom(byte[] bytes)
         {
-            ulong key = FontHelper.CalcChecksum(bytes);
+            return GetOrCreateFrom(bytes, 0);
+        }
+
+        /// <summary>
+        /// Gets an existing font source or creates a new one, with support for TrueType font collections.
+        /// For TTC files, collectionNumber selects which font within the collection to use.
+        /// Multiple fonts from the same collection share the underlying byte array.
+        /// </summary>
+        /// <param name="bytes">The raw bytes of the font file.</param>
+        /// <param name="collectionNumber">Index of the font in a TrueType font collection. Use 0 for non-collection fonts.</param>
+        public static XFontSource GetOrCreateFrom(byte[] bytes, int collectionNumber)
+        {
+            ulong baseKey = FontHelper.CalcChecksum(bytes);
+            ulong key = CombineKeyWithCollectionNumber(baseKey, collectionNumber);
             if (!FontFactory.TryGetFontSourceByKey(key, out var fontSource))
             {
-                fontSource = new XFontSource(bytes, key);
+                // For collection fonts, try to share the byte array with an existing font source
+                // from the same collection file to save memory.
+                byte[] sharedBytes = bytes;
+                if (collectionNumber != 0 && FontFactory.TryGetFontSourceByKey(baseKey, out var existingSource))
+                {
+                    sharedBytes = existingSource.Bytes;
+                }
+
+                fontSource = new XFontSource(sharedBytes, key, collectionNumber);
                 // Theoretically the font source could be created by a different thread in the meantime.
                 fontSource = FontFactory.CacheFontSource(fontSource);
             }
             return fontSource;
+        }
+
+        /// <summary>
+        /// Combines a base checksum key with a collection number to produce a unique cache key.
+        /// </summary>
+        static ulong CombineKeyWithCollectionNumber(ulong baseKey, int collectionNumber)
+        {
+            if (collectionNumber == 0)
+                return baseKey;
+            return baseKey ^ ((ulong)(uint)collectionNumber << 32);
         }
 
         /// <summary>
@@ -241,6 +273,12 @@ namespace PdfSharp.Drawing
         /// Gets the bytes of the font.
         /// </summary>
         public byte[] Bytes { get; }
+
+        /// <summary>
+        /// Gets the collection number for TrueType font collection files.
+        /// For non-collection fonts, this is 0.
+        /// </summary>
+        public int CollectionNumber { get; }
 
         /// <summary>
         /// Returns a hash code for this instance.

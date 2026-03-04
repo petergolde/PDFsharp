@@ -302,8 +302,33 @@ namespace PdfSharp.Fonts.OpenType
                 uint startTag = ReadULong();
                 if (startTag == TTCF)
                 {
-                    _fontTechnology = FontTechnology.TrueTypeCollection;
-                    throw new InvalidOperationException("TrueType collection fonts are not yet supported by PDFsharp.");
+                    // Parse the TTC header to locate the specific font within the collection.
+                    // TTC Header:
+                    //   uint32 ttcTag        ('ttcf') - already read as startTag
+                    //   uint16 majorVersion
+                    //   uint16 minorVersion
+                    //   uint32 numFonts
+                    //   uint32[numFonts] offsetTable  (offsets to each font's offset table)
+                    ushort majorVersion = ReadUShort();
+                    ushort minorVersion = ReadUShort();
+                    uint numFonts = ReadULong();
+
+                    int collectionNumber = FontSource.CollectionNumber;
+                    if (collectionNumber < 0 || (uint)collectionNumber >= numFonts)
+                    {
+                        throw new ArgumentOutOfRangeException(
+                            nameof(FontSource.CollectionNumber),
+                            $"Collection number {collectionNumber} is out of range. The TTC file contains {numFonts} font(s).");
+                    }
+
+                    // Seek to the offset entry for the requested font.
+                    // Offset array starts at position 12; each entry is 4 bytes.
+                    Position = 12 + 4 * collectionNumber;
+                    uint fontOffset = ReadULong();
+
+                    // Seek to the font's offset table and re-read the version tag.
+                    Position = (int)fontOffset;
+                    startTag = ReadULong();
                 }
 
                 // Read offset table
@@ -313,8 +338,8 @@ namespace PdfSharp.Fonts.OpenType
                 _offsetTable.EntrySelector = ReadUShort();
                 _offsetTable.RangeShift = ReadUShort();
 
-                // Move to table dictionary at position 12
-                Debug.Assert(Position == 12);
+                // Move to table dictionary (at position 12 for standalone fonts,
+                // or fontOffset + 12 for fonts within a TTC collection).
                 //tableDictionary = (offsetTable.TableCount);
 
                 if (_offsetTable.Version == OTTO)
