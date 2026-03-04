@@ -73,21 +73,30 @@ namespace PdfSharp.Fonts
         /// <param name="faceName">The name that uniquely identifies the font face.</param>
         /// <param name="mustSimulateBold">Set to <c>true</c> to simulate bold when rendered. Not implemented and must be false.</param>
         /// <param name="mustSimulateItalic">Set to <c>true</c> to simulate italic when rendered.</param>
-        /// <param name="collectionNumber">Index of the font in a true type font collection.
-        /// Not yet implemented and must be zero.
+        /// <param name="collectionNumber">Index of the font in a TrueType font collection file.
+        /// The first font is index 0. Use 0 for non-collection font files.
         /// </param>
-        internal FontResolverInfo(string faceName, bool mustSimulateBold, bool mustSimulateItalic, int collectionNumber = 0)
+        public FontResolverInfo(string faceName, bool mustSimulateBold, bool mustSimulateItalic, int collectionNumber)
         {
             if (String.IsNullOrEmpty(faceName))
                 throw new ArgumentNullException(nameof(faceName));
-            if (collectionNumber != 0)
-                throw new NotImplementedException("collectionNumber is not yet implemented and must be 0.");
 
             FaceName = faceName;
             MustSimulateBold = mustSimulateBold;
             MustSimulateItalic = mustSimulateItalic;
             CollectionNumber = collectionNumber;
         }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FontResolverInfo"/> struct.
+        /// </summary>
+        /// <param name="faceName">The name that uniquely identifies the font face.</param>
+        /// <param name="collectionNumber">Index of the font in a TrueType font collection file.
+        /// The first font is index 0. Use 0 for non-collection font files.
+        /// </param>
+        public FontResolverInfo(string faceName, int collectionNumber)
+            : this(faceName, false, false, collectionNumber)
+        { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="FontResolverInfo"/> struct.
@@ -146,9 +155,9 @@ namespace PdfSharp.Fonts
 
         /// <summary>
         /// The number of the font in a TrueType font collection file. The number of the first font is 0.
-        /// NOT YET IMPLEMENTED. Must be zero.
+        /// For non-collection font files, this is 0.
         /// </summary>
-        internal int CollectionNumber { get; }
+        public int CollectionNumber { get; }
 
         /// <summary>
         /// Gets the DebuggerDisplayAttribute text.

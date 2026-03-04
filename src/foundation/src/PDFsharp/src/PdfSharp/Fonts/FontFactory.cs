@@ -208,7 +208,8 @@ namespace PdfSharp.Fonts
 
                         // Create a new font source if no such one exists. It can already exist if a
                         // custom font resolver returns the same bytes for more than one face name.
-                        var fontSource = XFontSource.GetOrCreateFrom(bytes);
+                        // Pass collection number to support TrueType font collection (TTC) files.
+                        var fontSource = XFontSource.GetOrCreateFrom(bytes, fontResolverInfo.CollectionNumber);
 
                         // Add font source’s font resolver name if it is different to the face name.
                         if (String.Compare(fontResolverInfo.FaceName, fontSource.FontName,
